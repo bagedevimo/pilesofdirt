@@ -12,17 +12,19 @@ import Time
 
 impossibleProject : Project
 impossibleProject =
-    Project "end of the game or something?" 0 99999999 0
+    Project "end of the game or something?" 0 999999999999 0
 
 
 projects : List Project
 projects =
-    [ Project "Zen garden" 20 15 0
-    , Project "Small garden" 300 35 0
-    , Project "Large garden" 800 1100 0
-    , Project "Kids playgroud" 2000 3200 0
-    , Project "Cul de sac" 5000 9300 0
-    ]
+    List.map (\( name, cm3, reward ) -> Project name reward (round (cm3 * 1000.0 * 1000000.0)) 0)
+        [ ( "Setup a planter box", 0.2, 350 )
+        , ( "Fill a garden bed", 1, 350 )
+        , ( "Build a small garden", 3, 350 )
+        , ( "Level a back yard", 8, 1100 )
+        , ( "Prepare a site for playgroud", 20, 3200 )
+        , ( "Break ground on a Cul de sac", 50, 9300 )
+        ]
 
 
 nextProject : Int -> Project
@@ -33,9 +35,14 @@ nextProject numberOfProjectCompletions =
 type alias Project =
     { name : String
     , payment : Int
-    , amountOfDirtRequired : Int
-    , amountOfDirtDelivered : Int
+    , mm3Required : Int
+    , mm3Delivered : Int
     }
+
+
+remainingDirtRequired : Project -> Int
+remainingDirtRequired project =
+    project.mm3Required - project.mm3Delivered
 
 
 type alias Model =
@@ -44,26 +51,32 @@ type alias Model =
     , numberOfWorkers : Int
     , dirtPerAction : Int
     , dirtPerManualAction : Int
-    , actionSpeed : Float
+    , actionSpeed : Int
     , currency : Int
-    , workerCost : Int
-    , dirtCost : Int
     , currentProject : Project
     , projectCompletions : Int
     }
+
+
+workerCost : Model -> Int
+workerCost model =
+    100 + (2 ^ model.numberOfWorkers) - 1
+
+
+dirtCost : Model -> Int
+dirtCost model =
+    100
 
 
 initialModel : () -> ( Model, Cmd Msg )
 initialModel _ =
     ( { amountOfDirt = 0
       , numberOfWorkers = 0
-      , dirtPerAction = 1
-      , dirtPerManualAction = 1
-      , actionSpeed = 5000.0
+      , dirtPerAction = 100000
+      , dirtPerManualAction = 1000000
+      , actionSpeed = 5000
       , lastTick = Nothing
       , currency = 0
-      , workerCost = 100
-      , dirtCost = 100
       , currentProject = nextProject 0
       , projectCompletions = 0
       }
@@ -87,33 +100,33 @@ update msg model =
                 proposedMovingAmount =
                     min model.amountOfDirt model.dirtPerManualAction
 
+                currentProject =
+                    model.currentProject
+
                 projectRequredDirt =
-                    model.currentProject.amountOfDirtRequired - model.currentProject.amountOfDirtDelivered
+                    remainingDirtRequired currentProject
 
                 proposedDirtDelivery =
                     min projectRequredDirt proposedMovingAmount
 
-                currentProject =
-                    model.currentProject
-
                 updatedProject =
-                    { currentProject | amountOfDirtDelivered = model.currentProject.amountOfDirtDelivered + proposedDirtDelivery }
+                    { currentProject | mm3Delivered = model.currentProject.mm3Delivered + proposedDirtDelivery }
             in
             ( { model | amountOfDirt = model.amountOfDirt - proposedDirtDelivery, currentProject = updatedProject }, Cmd.none )
 
         GatherDirt ->
-            ( { model | amountOfDirt = model.amountOfDirt + 1 }, Cmd.none )
+            ( { model | amountOfDirt = model.amountOfDirt + model.dirtPerManualAction }, Cmd.none )
 
         PurchaseWorker ->
-            if model.currency >= model.workerCost then
-                ( { model | numberOfWorkers = model.numberOfWorkers + 1, currency = model.currency - model.workerCost }, Cmd.none )
+            if model.currency >= workerCost model then
+                ( { model | numberOfWorkers = model.numberOfWorkers + 1, currency = model.currency - workerCost model }, Cmd.none )
 
             else
                 ( model, Cmd.none )
 
         BuyDirt ->
-            if model.currency >= model.dirtCost then
-                ( { model | amountOfDirt = model.amountOfDirt + 1, currency = model.currency - model.dirtCost }, Cmd.none )
+            if model.currency >= dirtCost model then
+                ( { model | amountOfDirt = model.amountOfDirt + 1, currency = model.currency - dirtCost model }, Cmd.none )
 
             else
                 ( model, Cmd.none )
@@ -126,22 +139,22 @@ update msg model =
                 Just lastPosix ->
                     let
                         durationInMs =
-                            toFloat (Time.posixToMillis now - Time.posixToMillis lastPosix)
+                            Debug.log "durationInMs" (toFloat (Time.posixToMillis now - Time.posixToMillis lastPosix))
 
                         amountOfDirtCanMoveThisTick =
-                            round (toFloat (model.numberOfWorkers * model.dirtPerAction) * (durationInMs / model.actionSpeed))
+                            Debug.log "amountOfDirtCanMoveThisTick " (round (toFloat (Debug.log "w*dpa" (model.numberOfWorkers * model.dirtPerAction)) * Debug.log "portion of action" (durationInMs / toFloat model.actionSpeed)))
 
                         proposedMovingAmount =
                             min model.amountOfDirt amountOfDirtCanMoveThisTick
 
+                        currentProject =
+                            model.currentProject
+
                         projectRequiredDirt =
-                            model.currentProject.amountOfDirtRequired - model.currentProject.amountOfDirtDelivered
+                            remainingDirtRequired currentProject
 
                         proposedDirtDelivery =
                             min projectRequiredDirt proposedMovingAmount
-
-                        currentProject =
-                            model.currentProject
                     in
                     if proposedDirtDelivery <= 0 && model.amountOfDirt > 0 && projectRequiredDirt <= 0 then
                         let
@@ -153,7 +166,7 @@ update msg model =
                     else
                         let
                             updatedProject =
-                                { currentProject | amountOfDirtDelivered = model.currentProject.amountOfDirtDelivered + proposedDirtDelivery }
+                                { currentProject | mm3Delivered = model.currentProject.mm3Delivered + proposedDirtDelivery }
                         in
                         ( { model | lastTick = Just now, amountOfDirt = model.amountOfDirt - proposedDirtDelivery, currentProject = updatedProject }, Cmd.none )
 
@@ -161,48 +174,86 @@ update msg model =
 viewActions : Model -> Html Msg
 viewActions model =
     NES.container "Actions"
+        [ class "is-height-2" ]
         [ button [ onClick GatherDirt ] [ text "Scrounge some dirt" ]
         , button [ onClick MoveDirt, disabled (model.amountOfDirt < model.dirtPerManualAction) ] [ text "Move some dirt" ]
-        , button [ onClick PurchaseWorker, disabled (model.currency < model.workerCost) ] [ text ("Hire a Will ($" ++ String.fromInt model.workerCost ++ ")") ]
-        , button [ onClick BuyDirt, disabled (model.currency < model.dirtCost) ] [ text ("Buy 1m^3 of dirt ($" ++ String.fromInt model.dirtCost ++ ")") ]
+        , button [ onClick PurchaseWorker, disabled (model.currency < workerCost model) ] [ text ("Hire a Will ($" ++ String.fromInt (workerCost model) ++ ")") ]
+        , button [ onClick BuyDirt, disabled (model.currency < dirtCost model) ]
+            [ text "Buy 1"
+            , text "m"
+            , Html.sup [] [ text "3" ]
+            , text (" of dirt ($" ++ String.fromInt (dirtCost model) ++ ")")
+            ]
         ]
 
 
 viewStatus : Model -> Html Msg
 viewStatus model =
     NES.container "You"
-        [ div [] [ text ("Amount of dirt: " ++ Round.round 3 (toFloat model.amountOfDirt / 1000) ++ " m^3") ]
+        [ class "is-span-2" ]
+        [ div [] (viewDirtVolume "Amount of dirt: " model.amountOfDirt)
         , div [] [ text ("Number of Wills: " ++ String.fromInt model.numberOfWorkers) ]
         , div [] [ text ("Money: " ++ String.fromInt model.currency) ]
         ]
 
 
+dirtVolume : Int -> String
+dirtVolume volume =
+    Round.round 5 <| toFloat volume / 1000.0 / 1000000.0
+
+
+viewDirtVolume : String -> Int -> List (Html msg)
+viewDirtVolume leading volume =
+    [ text (leading ++ dirtVolume volume ++ "m"), Html.sup [] [ text "3" ] ]
+
+
 viewProject : Project -> Html Msg
 viewProject project =
     NES.container "Project"
-        [ div [] [ text ("Current project: Flatten a " ++ project.name ++ ": (+$" ++ String.fromInt project.payment ++ ")") ]
-        , div [] [ text ("Dirt required: " ++ Round.round 3 (toFloat project.amountOfDirtRequired / 1000)) ]
-        , div [] [ text ("Dirt delivered: " ++ Round.round 3 (toFloat project.amountOfDirtDelivered / 1000)) ]
+        [ class "is-span-2" ]
+        [ div [] [ text ("Current project: " ++ project.name ++ ": (+$" ++ String.fromInt project.payment ++ ")") ]
+        , div [] (viewDirtVolume "Dirt required: " (remainingDirtRequired project))
         , Html.br [] []
-        , NES.progress ((toFloat project.amountOfDirtDelivered / toFloat project.amountOfDirtRequired) * 100)
+        , NES.progress ((toFloat project.mm3Delivered / toFloat project.mm3Required) * 100)
         ]
+
+
+viewStats : Model -> Html Msg
+viewStats model =
+    NES.container "Nerds"
+        [ class "is-span-2 is-height-2" ]
+        [ div [] (viewDirtVolume "Dirt per manual action: " model.dirtPerManualAction)
+        , div [] (viewDirtVolume "Dirt per Will action: " model.dirtPerAction)
+        , div [] [ text ("Will actions take: " ++ Round.round 3 (toFloat model.actionSpeed / 1000.0) ++ "s") ]
+        ]
+
+
+viewUpgrades : Model -> Html Msg
+viewUpgrades model =
+    NES.container "Upgrades" [ class "is-upgrades" ] []
+
+
+viewVisualiser : Model -> Html Msg
+viewVisualiser model =
+    NES.container "Visualiser" [ class "is-height-2" ] []
 
 
 view : Model -> Html Msg
 view model =
     div [ class "container" ]
-        [ Html.h1 [] [ text "Piles of dirt" ]
+        [ div [] [ Html.h1 [] [ text "Piles of dirt" ] ]
         , viewActions model
-        , Html.br [] []
         , viewStatus model
-        , Html.br [] []
         , viewProject model.currentProject
+        , viewUpgrades model
+        , viewStats model
+        , viewVisualiser model
         ]
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Time.every 100 Tick
+subscriptions _ =
+    Time.every 1000 Tick
 
 
 main : Program () Model Msg

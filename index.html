@@ -5,21 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" >
 
     <title>Piles of dirt</title>
-    <style>body { padding: 0; margin: 0; }</style>
     <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
     <style>
-      body {
-        display: flex;
-        justify-content: center;
+      html {
+        height: 100%;
       }
 
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
 
       .container {
-        width: 600px;
+        display: grid;
+        grid-template-columns: 1fr;
+
+        grid-column-gap: 10px;
+        grid-row-gap: 10px;
+
+        padding: 10px;
+
+        min-height: 100%;
+      }
+
+      @media (min-width: 800px) {
+        .container {
+          grid-template-columns: repeat(4, 1fr);
+          grid-template-rows: repeat(4, 1fr);
+        }
+
+        .is-span-2 {
+          grid-column-end: span 2;
+        }
+
+        .is-height-2 {
+          grid-row-end: span 2;
+        }
+
+        .is-upgrades {
+          grid-column-start: 0;
+          grid-column-end: span 1;
+          grid-row-start: 2;
+          grid-row-end: span 3;
+        }
       }
     </style>
   </head>
