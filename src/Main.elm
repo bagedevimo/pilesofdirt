@@ -139,10 +139,10 @@ update msg model =
                 Just lastPosix ->
                     let
                         durationInMs =
-                            Debug.log "durationInMs" (toFloat (Time.posixToMillis now - Time.posixToMillis lastPosix))
+                            toFloat (Time.posixToMillis now - Time.posixToMillis lastPosix)
 
                         amountOfDirtCanMoveThisTick =
-                            Debug.log "amountOfDirtCanMoveThisTick " (round (toFloat (Debug.log "w*dpa" (model.numberOfWorkers * model.dirtPerAction)) * Debug.log "portion of action" (durationInMs / toFloat model.actionSpeed)))
+                            round (toFloat (model.numberOfWorkers * model.dirtPerAction) * durationInMs / toFloat model.actionSpeed)
 
                         proposedMovingAmount =
                             min model.amountOfDirt amountOfDirtCanMoveThisTick
