@@ -64,7 +64,7 @@ workerCost model =
 
 
 dirtCost : Model -> Int
-dirtCost model =
+dirtCost _ =
     100
 
 
@@ -126,7 +126,7 @@ update msg model =
 
         BuyDirt ->
             if model.currency >= dirtCost model then
-                ( { model | amountOfDirt = model.amountOfDirt + 1, currency = model.currency - dirtCost model }, Cmd.none )
+                ( { model | amountOfDirt = model.amountOfDirt + 1 * 1000 * 1000000, currency = model.currency - dirtCost model }, Cmd.none )
 
             else
                 ( model, Cmd.none )
