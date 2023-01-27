@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, hr, text)
+import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (class, disabled)
 import Html.Events exposing (onClick)
 import List.Extra
@@ -12,16 +12,16 @@ import Time
 
 impossibleProject : Project
 impossibleProject =
-    Project "end of the game or something?" 0 9999999.9 0.0
+    Project "end of the game or something?" 0 99999999 0
 
 
 projects : List Project
 projects =
-    [ Project "Zen garden" 20 0.15 0.0
-    , Project "Small garden" 300 0.35 0.0
-    , Project "Large garden" 800 1.1 0.0
-    , Project "Kids playgroud" 2000 3.2 0.0
-    , Project "Cul de sac" 5000 9.3 0.0
+    [ Project "Zen garden" 20 15 0
+    , Project "Small garden" 300 35 0
+    , Project "Large garden" 800 1100 0
+    , Project "Kids playgroud" 2000 3200 0
+    , Project "Cul de sac" 5000 9300 0
     ]
 
 
@@ -33,17 +33,17 @@ nextProject numberOfProjectCompletions =
 type alias Project =
     { name : String
     , payment : Int
-    , amountOfDirtRequired : Float
-    , amountOfDirtDelivered : Float
+    , amountOfDirtRequired : Int
+    , amountOfDirtDelivered : Int
     }
 
 
 type alias Model =
     { lastTick : Maybe Time.Posix
-    , amountOfDirt : Float
+    , amountOfDirt : Int
     , numberOfWorkers : Int
-    , dirtPerAction : Float
-    , dirtPerManualAction : Float
+    , dirtPerAction : Int
+    , dirtPerManualAction : Int
     , actionSpeed : Float
     , currency : Int
     , workerCost : Int
@@ -55,10 +55,10 @@ type alias Model =
 
 initialModel : () -> ( Model, Cmd Msg )
 initialModel _ =
-    ( { amountOfDirt = 1.0
+    ( { amountOfDirt = 0
       , numberOfWorkers = 0
-      , dirtPerAction = 0.01
-      , dirtPerManualAction = 0.01
+      , dirtPerAction = 1
+      , dirtPerManualAction = 1
       , actionSpeed = 5000.0
       , lastTick = Nothing
       , currency = 0
@@ -73,6 +73,7 @@ initialModel _ =
 
 type Msg
     = MoveDirt
+    | GatherDirt
     | PurchaseWorker
     | BuyDirt
     | Tick Time.Posix
@@ -100,6 +101,9 @@ update msg model =
             in
             ( { model | amountOfDirt = model.amountOfDirt - proposedDirtDelivery, currentProject = updatedProject }, Cmd.none )
 
+        GatherDirt ->
+            ( { model | amountOfDirt = model.amountOfDirt + 1 }, Cmd.none )
+
         PurchaseWorker ->
             if model.currency >= model.workerCost then
                 ( { model | numberOfWorkers = model.numberOfWorkers + 1, currency = model.currency - model.workerCost }, Cmd.none )
@@ -125,7 +129,7 @@ update msg model =
                             toFloat (Time.posixToMillis now - Time.posixToMillis lastPosix)
 
                         amountOfDirtCanMoveThisTick =
-                            toFloat model.numberOfWorkers * model.dirtPerAction * (durationInMs / model.actionSpeed)
+                            round (toFloat (model.numberOfWorkers * model.dirtPerAction) * (durationInMs / model.actionSpeed))
 
                         proposedMovingAmount =
                             min model.amountOfDirt amountOfDirtCanMoveThisTick
@@ -157,7 +161,8 @@ update msg model =
 viewActions : Model -> Html Msg
 viewActions model =
     NES.container "Actions"
-        [ button [ onClick MoveDirt ] [ text "Move some dirt" ]
+        [ button [ onClick GatherDirt ] [ text "Scrounge some dirt" ]
+        , button [ onClick MoveDirt, disabled (model.amountOfDirt < model.dirtPerManualAction) ] [ text "Move some dirt" ]
         , button [ onClick PurchaseWorker, disabled (model.currency < model.workerCost) ] [ text ("Hire a Will ($" ++ String.fromInt model.workerCost ++ ")") ]
         , button [ onClick BuyDirt, disabled (model.currency < model.dirtCost) ] [ text ("Buy 1m^3 of dirt ($" ++ String.fromInt model.dirtCost ++ ")") ]
         ]
@@ -166,7 +171,7 @@ viewActions model =
 viewStatus : Model -> Html Msg
 viewStatus model =
     NES.container "You"
-        [ div [] [ text ("Amount of dirt: " ++ Round.roundCom 2 model.amountOfDirt ++ " m^3") ]
+        [ div [] [ text ("Amount of dirt: " ++ Round.round 3 (toFloat model.amountOfDirt / 1000) ++ " m^3") ]
         , div [] [ text ("Number of Wills: " ++ String.fromInt model.numberOfWorkers) ]
         , div [] [ text ("Money: " ++ String.fromInt model.currency) ]
         ]
@@ -176,8 +181,10 @@ viewProject : Project -> Html Msg
 viewProject project =
     NES.container "Project"
         [ div [] [ text ("Current project: Flatten a " ++ project.name ++ ": (+$" ++ String.fromInt project.payment ++ ")") ]
-        , div [] [ text ("Dirt required: " ++ Round.roundCom 2 project.amountOfDirtRequired) ]
-        , div [] [ text ("Dirt delivered: " ++ Round.roundCom 2 project.amountOfDirtDelivered) ]
+        , div [] [ text ("Dirt required: " ++ Round.round 3 (toFloat project.amountOfDirtRequired / 1000)) ]
+        , div [] [ text ("Dirt delivered: " ++ Round.round 3 (toFloat project.amountOfDirtDelivered / 1000)) ]
+        , Html.br [] []
+        , NES.progress ((toFloat project.amountOfDirtDelivered / toFloat project.amountOfDirtRequired) * 100)
         ]
 
 
