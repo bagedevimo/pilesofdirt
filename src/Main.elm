@@ -19,6 +19,7 @@ projects =
     [ Project "Small garden" 300 0.35 0.0
     , Project "Large garden" 800 1.1 0.0
     , Project "Kids playgroud" 2000 3.2 0.0
+    , Project "Cul de sac" 5000 9.3 0.0
     ]
 
 
