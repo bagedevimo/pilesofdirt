@@ -253,7 +253,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Time.every 1000 Tick
+    Time.every 100 Tick
 
 
 main : Program () Model Msg
